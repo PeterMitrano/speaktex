@@ -3,6 +3,7 @@ import argparse
 import pathlib
 
 from speaktex import speaktex
+from speaktex.speaktex import TexSpeaker
 
 
 def main():
@@ -11,7 +12,8 @@ def main():
 
     args = parser.parse_args()
 
-    speaktex.speaktex(args.texfile)
+    speaker = TexSpeaker()
+    speaker.speaktex(args.texfile)
 
 
 if __name__ == '__main__':

@@ -1,16 +1,14 @@
+import json
 import pathlib
-import string
-import tempfile
 import random
+import string
 
 import boto3
 import pyglet
+from colorama import Fore
 from tex2py import tex2py
 
-root = pathlib.Path(tempfile.gettempdir()) / 'speaktex'
-
-# map of text -> mp3 file names
-tts_memory = {}
+root = pathlib.Path.home() / '.speaktex'
 
 
 def rand_str(length=16):
@@ -19,33 +17,50 @@ def rand_str(length=16):
     return ''.join(random.choice(letters) for i in range(length))
 
 
-def request_tts(client, text):
-    if text in tts_memory:
-        audiofilename = tts_memory[text]
-        return audiofilename
+class TexSpeaker:
 
-    response = client.synthesize_speech(VoiceId='Joanna', OutputFormat='mp3', Text=text)
-    # audiofilename = root / (rand_str() + ".mp3")
-    audiofilename = pathlib.Path('test.mp3')
-    tts_memory[text] = audiofilename
-    audiofile = audiofilename.open("wb")
-    audiofile.write(response['AudioStream'].read())
-    return audiofilename
+    def __init__(self):
+        self.first_time_setup()
+        # load map of text -> mp3 file names
+        self.tts_memory = json.load(self.cachefilename.open("r"))
 
+        # load cache
+        self.client = boto3.Session().client('polly')
 
-def speaktex(tex_filename: pathlib.Path):
-    if not root.exists():
-        root.mkdir()
+    def save_cache(self):
+        json.dump(self.tts_memory, self.cachefilename.open("w"), indent=2)
 
-    with tex_filename.open('r') as tex_file:
-        data = tex_file.read()
-    tex_tree = tex2py(data)
+    def request_tts(self, text) -> str:
+        if text in self.tts_memory:
+            audiofilename = self.tts_memory[text]
+            return audiofilename
 
-    client = boto3.Session().client('polly')
+        print(Fore.CYAN + "Making API Request..." + Fore.RESET)
+        response = self.client.synthesize_speech(VoiceId='Joanna', OutputFormat='mp3', Text=text)
+        audiofilename = root / (rand_str() + ".mp3")
+        self.tts_memory[text] = str(audiofilename)
+        audiofile = audiofilename.open("wb")
+        audiofile.write(response['AudioStream'].read())
+        self.save_cache()
+        return str(audiofilename)
 
-    audiofilename = request_tts(client, text='this is some sample text')
+    def speaktex(self, tex_filename: pathlib.Path):
+        with tex_filename.open('r') as tex_file:
+            data = tex_file.read()
+        tex_tree = tex2py(data)
 
-    player = pyglet.media.Player()
-    speech = pyglet.media.load(audiofilename)
-    player.queue(speech)
-    pyglet.app.run()
+        audiofilename = self.request_tts(text='this is some sample text')
+
+        player = pyglet.media.Player()
+        speech = pyglet.media.load(audiofilename)
+        player.queue(speech)
+        player.play()
+        pyglet.app.run()
+
+    def first_time_setup(self):
+        if not root.exists():
+            root.mkdir()
+
+        self.cachefilename = root / 'cache.json'
+        if not self.cachefilename.exists():
+            json.dump({}, self.cachefilename.open("w"), indent=2)
