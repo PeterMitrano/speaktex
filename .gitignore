@@ -1,4 +1,5 @@
 *.swp
+*.mp3
 .idea
 *.pyc
 *.egg-info
