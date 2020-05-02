@@ -51,11 +51,17 @@ class TexSpeaker:
 
         audiofilename = self.request_tts(text='this is some sample text')
 
-        player = pyglet.media.Player()
         speech = pyglet.media.load(audiofilename)
-        player.queue(speech)
-        player.play()
+        self.player = pyglet.media.Player()
+        self.player.queue(speech)
+        self.player.play()
+        self.player.on_eos = self.on_player_end_of_sequence
+
         pyglet.app.run()
+
+    def on_player_end_of_sequence(self):
+        print("done")
+        pyglet.app.exit()
 
     def first_time_setup(self):
         if not root.exists():
